@@ -9,14 +9,21 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/piotrnar/gocoin/lib/btc"
 )
+
+var WORDS []string
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 type AddressInfo struct {
 	Word          string
@@ -35,9 +42,6 @@ type Response struct {
 
 func main() {
 	fileName := flag.String("file", "words.txt", "Path of the file containing words")
-	firstWord := flag.String("first-word", "", "First word to start scanning")
-	firstLetter := flag.String("first-letter", "", "First letter to start scanning")
-	lastLetter := flag.String("last-letter", "", "First letter to stop scanning")
 	frequency := flag.String("frequency", "1333ms", "Check sleep duration")
 	flag.Parse()
 
@@ -56,9 +60,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Fprintln(configFile, "First Word: "+*firstWord)
-	fmt.Fprintln(configFile, "First Letter: "+*firstLetter)
-	fmt.Fprintln(configFile, "Last Letter: "+*lastLetter)
 	fmt.Fprintln(configFile, "Frequency: "+*frequency)
 
 	allRestulsFile, err := os.Create(pid + "/all.csv")
@@ -77,21 +78,8 @@ func main() {
 	}
 
 	scanner := bufio.NewScanner(file)
-
-	if *firstWord != "" {
-		for scanner.Scan() {
-			if scanner.Text() == *firstWord {
-				break
-			}
-		}
-	}
-
-	if *firstLetter != "" {
-		for scanner.Scan() {
-			if []rune(scanner.Text())[0] == []rune(*firstLetter)[0] {
-				break
-			}
-		}
+	for scanner.Scan() {
+		WORDS = append(WORDS, scanner.Text())
 	}
 
 	sleepDuration, err := time.ParseDuration(*frequency)
@@ -99,34 +87,39 @@ func main() {
 		panic(err)
 	}
 
-	for scanner.Scan() {
-		word := scanner.Text()
+	for {
 
-		if *lastLetter != "" && []rune(word)[0] == []rune(*lastLetter)[0] {
-			break
-		}
+		seed := getSeed(12)
 
-		addressInfo := newAddressInfoFromWord(word)
+		addressInfo := newAddressInfoFromWord(seed)
 
 		recordAddressInfo(allRestulsFile, addressInfo)
 
 		if addressInfo.TotalReceived > 0 {
+			fmt.Printf("Found Used Wallet\n")
 			recordAddressInfo(usedRestulsFile, addressInfo)
 		}
 
 		if addressInfo.FinalBalance > 0 {
+			fmt.Printf("Found Active Wallet!!!\n")
 			recordAddressInfo(activeRestulsFile, addressInfo)
 		}
 
 		time.Sleep(sleepDuration)
 	}
 
-	if err := scanner.Err(); err != nil {
-		panic(err)
-	}
 }
+
 func recordAddressInfo(writer io.Writer, addressInfo *AddressInfo) {
-	fmt.Fprintf(writer, "%v, %v, %v, %v, %v\n", addressInfo.Key, addressInfo.Address, addressInfo.Word, addressInfo.TotalReceived, addressInfo.FinalBalance)
+	fmt.Fprintf(
+		writer,
+		"%s, %s, %s, %f, %f\n",
+		addressInfo.Key,
+		addressInfo.Address,
+		addressInfo.Word,
+		float64(addressInfo.TotalReceived)/100000000,
+		float64(addressInfo.FinalBalance)/100000000,
+	)
 }
 
 // Using Blockexplorer's api
@@ -173,7 +166,6 @@ func newAddressInfoFromWord(word string) *AddressInfo {
 	var addressInfo AddressInfo
 	err = json.Unmarshal(body, &addressInfo)
 	if err != nil {
-		log.Printf("Error Unmarshal address info: %s", err)
 		return &addressInfo
 	}
 
@@ -181,4 +173,13 @@ func newAddressInfoFromWord(word string) *AddressInfo {
 	addressInfo.Key = hex.EncodeToString(privateKey)
 
 	return &addressInfo
+}
+
+func getSeed(count int) string {
+	var words []string
+	for i := 1; i <= count; i++ {
+		index := rand.Intn(len(WORDS))
+		words = append(words, WORDS[index])
+	}
+	return strings.Join(words, " ")
 }

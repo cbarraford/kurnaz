@@ -9,7 +9,7 @@ Or you can just download the compiled binary, but you will need to copy the
 word files.
 
 ```bash
-$ ./kurnaz -first-word issue -last-letter v -file data/words.txt -frequency 200ms
+$ ./kurnaz -file data/english.txt -frequency 200ms
 ```
 
 This will generate 4 files unider `PID/` directory.

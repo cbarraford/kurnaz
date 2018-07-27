@@ -44,13 +44,13 @@ Here are the results from initial run:
 ```bash
 $ wc -l results/*/*.csv 
 
-		0 results/jargon/actve.csv
+		0 results/jargon/active.csv
 	 2324 results/jargon/all.csv
 	   60 results/jargon/used.csv
-		0 results/urban/actve.csv
+		0 results/urban/active.csv
 	 3147 results/urban/all.csv
 	   53 results/urban/used.csv
-		0 results/words/actve.csv
+		0 results/words/active.csv
 	27589 results/words/all.csv
 	 6941 results/words/used.csv
 	40114 total

@@ -7,13 +7,15 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/piotrnar/gocoin/btc"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/piotrnar/gocoin/lib/btc"
 )
 
 type AddressInfo struct {
@@ -69,7 +71,7 @@ func main() {
 		panic(err)
 	}
 
-	activeRestulsFile, err := os.Create(pid + "/actve.csv")
+	activeRestulsFile, err := os.Create(pid + "/active.csv")
 	if err != nil {
 		panic(err)
 	}
@@ -153,12 +155,9 @@ func newAddressInfoFromWord(word string) *AddressInfo {
 	}
 	privateKey := sha256Hash.Sum(nil)
 
-	publicKey, err := btc.PublicFromPrivate(privateKey, false)
-	if err != nil {
-		panic(err)
-	}
+	publicKey := btc.PublicFromPrivate(privateKey, false)
 
-	address := btc.NewAddrFromPubkey(publicKey, btc.ADDRVER_BTC).String()
+	address := btc.NewAddrFromPubkey(publicKey, 0x00).String()
 
 	resp, err := http.Get("http://blockchain.info/address/" + address + "?format=json")
 	if err != nil {
@@ -174,7 +173,8 @@ func newAddressInfoFromWord(word string) *AddressInfo {
 	var addressInfo AddressInfo
 	err = json.Unmarshal(body, &addressInfo)
 	if err != nil {
-		panic(err)
+		log.Printf("Error Unmarshal address info: %s", err)
+		return &addressInfo
 	}
 
 	addressInfo.Word = word
